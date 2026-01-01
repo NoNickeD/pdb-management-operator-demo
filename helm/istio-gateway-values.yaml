@@ -1,0 +1,25 @@
+# Istio Gateway Values - Configured for EKS without sidecar injection
+# This bypasses the webhook by deploying the proxy directly
+
+podAnnotations:
+  prometheus.io/port: "15020"
+  prometheus.io/scrape: "true"
+  prometheus.io/path: "/stats/prometheus"
+  # Disable sidecar injection - we run the proxy directly
+  sidecar.istio.io/inject: "false"
+
+service:
+  type: LoadBalancer
+  ports:
+    - name: status-port
+      port: 15021
+      protocol: TCP
+      targetPort: 15021
+    - name: http2
+      port: 80
+      protocol: TCP
+      targetPort: 80
+    - name: https
+      port: 443
+      protocol: TCP
+      targetPort: 443

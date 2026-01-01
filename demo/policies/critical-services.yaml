@@ -1,0 +1,24 @@
+# Critical Services Policy
+# Enforces high-availability for components labeled as critical tier
+# Uses strict enforcement for guaranteed availability
+apiVersion: availability.oda.tmforum.org/v1alpha1
+kind: AvailabilityPolicy
+metadata:
+  name: critical-services
+  namespace: canvas
+spec:
+  # High availability for critical tier components
+  availabilityClass: high-availability
+
+  # Strict enforcement for critical services
+  enforcement: strict
+
+  # Medium-high priority
+  priority: 500
+
+  # Target components with tier=critical label
+  componentSelector:
+    namespaces:
+      - components
+    matchLabels:
+      tier: critical

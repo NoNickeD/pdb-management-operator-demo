@@ -1,0 +1,117 @@
+name: Terraform CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "infrastructure/**"
+      - ".github/workflows/terraform-ci.yaml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "infrastructure/**"
+      - ".github/workflows/terraform-ci.yaml"
+  workflow_dispatch:
+
+env:
+  TOFU_VERSION: "1.8.0"
+  TFLINT_VERSION: "v0.53.0"
+  WORKING_DIR: "infrastructure"
+
+jobs:
+  format:
+    name: Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: ${{ env.TOFU_VERSION }}
+
+      - name: Format Check
+        working-directory: ${{ env.WORKING_DIR }}
+        run: tofu fmt -check -recursive -diff
+
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    needs: format
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: ${{ env.TOFU_VERSION }}
+
+      - name: Init
+        working-directory: ${{ env.WORKING_DIR }}
+        run: tofu init -backend=false
+
+      - name: Validate
+        working-directory: ${{ env.WORKING_DIR }}
+        run: tofu validate
+
+  lint:
+    name: TFLint
+    runs-on: ubuntu-latest
+    needs: format
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: ${{ env.TOFU_VERSION }}
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: ${{ env.TFLINT_VERSION }}
+
+      - name: Init OpenTofu
+        working-directory: ${{ env.WORKING_DIR }}
+        run: tofu init -backend=false
+
+      - name: Init TFLint
+        working-directory: ${{ env.WORKING_DIR }}
+        run: tflint --init
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run TFLint
+        working-directory: ${{ env.WORKING_DIR }}
+        run: tflint --recursive --format=compact
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: validate
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: ${{ env.TOFU_VERSION }}
+
+      - name: Init
+        working-directory: ${{ env.WORKING_DIR }}
+        run: tofu init -backend=false
+
+      - name: Run Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: "config"
+          scan-ref: ${{ env.WORKING_DIR }}
+          skip-dirs: ".terraform"
+          trivyignores: "${{ env.WORKING_DIR }}/.trivyignore"
+          exit-code: "1"
+          severity: "HIGH,CRITICAL"
+          format: "table"

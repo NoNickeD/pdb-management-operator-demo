@@ -1,0 +1,231 @@
+version: "3"
+
+vars:
+  AWS_PROFILE: sandbox
+  AWS_REGION: eu-central-1
+  CLUSTER_NAME: oda-canvas-demo
+  CANVAS_NAMESPACE: canvas
+  COMPONENTS_NAMESPACE: components
+  MONITORING_NAMESPACE: monitoring
+  ISTIO_VERSION: "1.23.6"
+  METRICS_SERVER_VERSION: "3.12.2"
+  PROMETHEUS_STACK_VERSION: "80.4.1"
+  CANVAS_VERSION: "1.2.4"
+
+tasks:
+  # ============================================================================
+  # Main Tasks
+  # ============================================================================
+  default:
+    desc: Show available tasks
+    silent: true
+    cmds:
+      - task --list
+
+  setup:
+    desc: Complete setup (kubeconfig, prerequisites, Istio, observability, ODA Canvas)
+    silent: true
+    cmds:
+      - task: kubeconfig
+      - task: prereqs
+      - task: install:cert-manager
+      - task: install:metrics-server
+      - task: install:istio
+      - task: install:observability
+      - task: install:canvas
+      - echo "Setup complete! Run 'task deploy:components' to deploy sample components"
+
+  kubeconfig:
+    desc: Configure kubeconfig for the EKS cluster
+    silent: true
+    cmds:
+      - aws eks update-kubeconfig --name {{.CLUSTER_NAME}} --region {{.AWS_REGION}} --profile {{.AWS_PROFILE}}
+
+  prereqs:
+    desc: Add required Helm repositories
+    silent: true
+    cmds:
+      - helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server/
+      - helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+      - helm repo add jetstack https://charts.jetstack.io
+      - helm repo add istio https://istio-release.storage.googleapis.com/charts
+      - helm repo add oda-canvas https://tmforum-oda.github.io/oda-canvas
+      - helm repo update
+
+  # ============================================================================
+  # Installation Tasks
+  # ============================================================================
+  install:cert-manager:
+    desc: Install cert-manager with CRDs
+    silent: true
+    cmds:
+      - kubectl create namespace cert-manager --dry-run=client -o yaml | kubectl apply -f -
+      - helm upgrade --install cert-manager jetstack/cert-manager -n cert-manager --version v1.16.2 --set crds.enabled=true --wait
+
+  install:metrics-server:
+    desc: Install Kubernetes Metrics Server
+    silent: true
+    cmds:
+      - |
+        helm upgrade --install metrics-server metrics-server/metrics-server \
+          -n kube-system \
+          --version {{.METRICS_SERVER_VERSION}} \
+          --set args={--kubelet-insecure-tls} \
+          --wait
+
+  install:istio:
+    desc: Install Istio (base + istiod + ingress gateway)
+    silent: true
+    cmds:
+      - kubectl create namespace istio-system --dry-run=client -o yaml | kubectl apply -f -
+      - helm upgrade --install istio-base istio/base -n istio-system --version {{.ISTIO_VERSION}} --wait
+      - helm upgrade --install istiod istio/istiod -n istio-system --version {{.ISTIO_VERSION}} --wait
+      - kubectl create namespace istio-ingress --dry-run=client -o yaml | kubectl apply -f -
+      - |
+        cat <<'EOF' | istioctl install -y -f -
+        apiVersion: install.istio.io/v1alpha1
+        kind: IstioOperator
+        spec:
+          profile: empty
+          components:
+            ingressGateways:
+              - name: istio-ingress
+                namespace: istio-ingress
+                enabled: true
+                label:
+                  istio: ingress
+        EOF
+      - echo "Istio installation complete"
+
+  install:observability:
+    desc: Install Prometheus and Grafana stack
+    silent: true
+    cmds:
+      - kubectl create namespace {{.MONITORING_NAMESPACE}} --dry-run=client -o yaml | kubectl apply -f -
+      - |
+        helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
+          -n {{.MONITORING_NAMESPACE}} \
+          --version {{.PROMETHEUS_STACK_VERSION}} \
+          -f helm/observability-values.yaml \
+          --timeout 10m \
+          --wait
+
+  install:canvas:
+    desc: Install ODA Canvas with PDB Management Operator
+    silent: true
+    cmds:
+      - kubectl create namespace {{.CANVAS_NAMESPACE}} --dry-run=client -o yaml | kubectl apply -f -
+      - |
+        helm upgrade --install canvas oda-canvas/canvas-oda \
+          -n {{.CANVAS_NAMESPACE}} \
+          --version {{.CANVAS_VERSION}} \
+          -f helm/canvas-values.yaml \
+          --timeout 15m
+      # Disable secretsmanagement-operator (requires Vault which is not installed)
+      - kubectl scale deployment canvas-smanop -n {{.CANVAS_NAMESPACE}} --replicas=0 2>/dev/null || true
+      - kubectl rollout status deployment/canvas-pdb-management-operator -n {{.CANVAS_NAMESPACE}} --timeout=120s
+      - echo "ODA Canvas installation complete"
+
+  # ============================================================================
+  # Demo Deployment
+  # ============================================================================
+  deploy:components:
+    desc: Deploy sample ODA components
+    silent: true
+    cmds:
+      - kubectl apply -f demo/components/
+
+  deploy:policies:
+    desc: Deploy AvailabilityPolicy examples
+    silent: true
+    cmds:
+      - kubectl apply -f demo/policies/
+
+  # ============================================================================
+  # Verification & Monitoring
+  # ============================================================================
+  status:
+    desc: Show status of all components and PDBs
+    silent: true
+    cmds:
+      - echo "=== Canvas Operators ==="
+      - kubectl get pods -n {{.CANVAS_NAMESPACE}}
+      - echo ""
+      - echo "=== Demo Components ==="
+      - kubectl get deployments -n {{.COMPONENTS_NAMESPACE}} 2>/dev/null || echo "No components deployed yet"
+      - echo ""
+      - echo "=== AvailabilityPolicies ==="
+      - kubectl get availabilitypolicies -n {{.CANVAS_NAMESPACE}} 2>/dev/null || echo "No policies deployed yet"
+      - echo ""
+      - echo "=== PDBs ==="
+      - kubectl get pdb -A
+
+  watch:pdb:
+    desc: Watch PDBs being created/updated
+    silent: true
+    cmds:
+      - kubectl get pdb -A -w
+
+  logs:pdb-operator:
+    desc: View PDB Management Operator logs
+    silent: true
+    cmds:
+      - kubectl logs -n {{.CANVAS_NAMESPACE}} -l app.kubernetes.io/name=pdb-management-operator -f --tail=100
+
+  port-forward:grafana:
+    desc: Port-forward Grafana (http://localhost:3000)
+    silent: true
+    cmds:
+      - echo "Grafana available at http://localhost:3000 (admin/prom-operator)"
+      - kubectl port-forward -n {{.MONITORING_NAMESPACE}} svc/prometheus-grafana 3000:80
+
+  # ============================================================================
+  # Cleanup
+  # ============================================================================
+  clean:components:
+    desc: Remove demo components and policies
+    silent: true
+    cmds:
+      - kubectl delete -f demo/policies/ --ignore-not-found
+      - kubectl delete -f demo/components/ --ignore-not-found
+
+  clean:all:
+    desc: Complete cleanup of all installed components
+    silent: true
+    cmds:
+      - task: clean:components
+      - helm uninstall canvas -n {{.CANVAS_NAMESPACE}} --ignore-not-found || true
+      - helm uninstall prometheus -n {{.MONITORING_NAMESPACE}} --ignore-not-found || true
+      - istioctl uninstall --purge -y 2>/dev/null || true
+      - helm uninstall istiod -n istio-system --ignore-not-found || true
+      - helm uninstall istio-base -n istio-system --ignore-not-found || true
+      - helm uninstall metrics-server -n kube-system --ignore-not-found || true
+      - kubectl delete namespace {{.CANVAS_NAMESPACE}} --ignore-not-found
+      - kubectl delete namespace {{.MONITORING_NAMESPACE}} --ignore-not-found
+      - kubectl delete namespace istio-ingress --ignore-not-found
+      - kubectl delete namespace istio-system --ignore-not-found
+      - echo "Cleanup complete"
+
+  # ============================================================================
+  # Infrastructure (OpenTofu/Terraform)
+  # ============================================================================
+  infra:plan:
+    desc: Plan infrastructure changes
+    silent: true
+    dir: infrastructure
+    cmds:
+      - tofu plan -var-file=conf/deploy.tfvars
+
+  infra:apply:
+    desc: Apply infrastructure changes
+    silent: true
+    dir: infrastructure
+    cmds:
+      - tofu apply -var-file=conf/deploy.tfvars
+
+  infra:destroy:
+    desc: Destroy infrastructure (use with caution!)
+    silent: true
+    dir: infrastructure
+    cmds:
+      - tofu destroy -var-file=conf/deploy.tfvars

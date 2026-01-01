@@ -1,0 +1,10 @@
+cidr_block            = "10.0.0.0/16"
+cluster_version       = "1.34"
+cluster_name          = "oda-canvas-demo"
+instance_types        = ["c7a.2xlarge"]
+instance_types_system = ["c7a.2xlarge"]
+name                  = "oda-canvas-demo"
+profile               = "sandbox"      # Change to your AWS profile
+region                = "eu-central-1" # Change to your AWS region
+project               = "oda-canvas-demo"
+disk_size_system      = "40"

@@ -1,0 +1,26 @@
+# Production Baseline Policy
+# Sets a minimum standard for all components in the components namespace
+# Uses flexible enforcement to allow developers to request higher availability
+apiVersion: availability.oda.tmforum.org/v1alpha1
+kind: AvailabilityPolicy
+metadata:
+  name: production-baseline
+  namespace: canvas
+spec:
+  # Minimum availability level for production workloads
+  availabilityClass: standard
+
+  # Flexible enforcement allows developers to request higher availability
+  enforcement: flexible
+  minimumClass: standard
+
+  # Lower priority - can be overridden by more specific policies
+  priority: 100
+
+  # Apply to all ODA components in the components namespace
+  componentSelector:
+    namespaces:
+      - components
+    matchExpressions:
+      - key: oda.tmforum.org/componentName
+        operator: Exists

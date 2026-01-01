@@ -1,0 +1,14 @@
+# Trivy ignore file for PDB Management Operator Demo
+# These are acceptable for a demo/development cluster
+
+# EKS public access - required for demo accessibility
+AVD-AWS-0040
+
+# EKS public CIDR 0.0.0.0/0 - acceptable for demo cluster
+AVD-AWS-0041
+
+# EKS node group IMDSv1 - demo cluster only
+AVD-AWS-0102
+
+# Security group unrestricted egress - required for EKS functionality
+AVD-AWS-0104

@@ -1,0 +1,35 @@
+# Weekend Maintenance Window Policy
+# Demonstrates maintenance window feature
+# PDBs are suspended during the defined maintenance windows
+apiVersion: availability.oda.tmforum.org/v1alpha1
+kind: AvailabilityPolicy
+metadata:
+  name: weekend-maintenance
+  namespace: canvas
+spec:
+  # Standard availability with maintenance windows
+  availabilityClass: standard
+
+  # Advisory enforcement - annotations preferred
+  enforcement: advisory
+  allowOverride: true
+  overrideRequiresReason: false
+
+  # Low priority - serves as a default
+  priority: 50
+
+  # Apply to batch processing components
+  componentSelector:
+    componentFunctions:
+      - management
+    namespaces:
+      - components
+
+  # Define maintenance windows when PDBs can be relaxed
+  maintenanceWindows:
+    - start: "02:00"
+      end: "06:00"
+      timezone: "UTC"
+      daysOfWeek:
+        - 0  # Sunday
+        - 6  # Saturday

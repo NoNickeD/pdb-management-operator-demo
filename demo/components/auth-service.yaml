@@ -1,0 +1,57 @@
+# Authentication Service - Security Component
+# This deployment demonstrates security component auto-upgrade behavior
+# Even though it's marked as "standard", the operator will upgrade it
+# because security components receive higher protection
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+  namespace: components
+  labels:
+    app: auth-service
+    oda.tmforum.org/componentName: auth-service
+    oda.tmforum.org/componentType: security
+  annotations:
+    # Marked as standard, but will be upgraded due to security function
+    oda.tmforum.org/availability-class: "standard"
+    oda.tmforum.org/component-function: "security"
+    oda.tmforum.org/componentName: "auth-service"
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: auth-service
+  template:
+    metadata:
+      labels:
+        app: auth-service
+        oda.tmforum.org/componentName: auth-service
+    spec:
+      containers:
+        - name: auth
+          image: nginx:1.27-alpine
+          ports:
+            - containerPort: 80
+              name: http
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-service
+  namespace: components
+  labels:
+    app: auth-service
+spec:
+  selector:
+    app: auth-service
+  ports:
+    - port: 80
+      targetPort: 80
+      name: http

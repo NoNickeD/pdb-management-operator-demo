@@ -1,0 +1,48 @@
+---
+# Order Management Component - Mission Critical
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-management-api
+  namespace: demo-critical
+  labels:
+    app: order-management
+    oda.tmforum.org/component: order-management
+    component-function: core
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: order-management
+  template:
+    metadata:
+      labels:
+        app: order-management
+        oda.tmforum.org/component: order-management
+    spec:
+      containers:
+        - name: api
+          image: nginx:alpine
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-management-api
+  namespace: demo-critical
+  labels:
+    app: order-management
+spec:
+  selector:
+    app: order-management
+  ports:
+    - port: 80
+      targetPort: 80

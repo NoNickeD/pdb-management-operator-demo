@@ -1,0 +1,55 @@
+# TMF622 Product Ordering - Core ODA Component
+# This deployment uses standard availability class
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tmf622-productordering
+  namespace: components
+  labels:
+    app: productordering
+    oda.tmforum.org/componentName: productordering
+    oda.tmforum.org/componentType: core
+  annotations:
+    oda.tmforum.org/availability-class: "standard"
+    oda.tmforum.org/component-function: "core"
+    oda.tmforum.org/componentName: "productordering"
+    oda.tmforum.org/api-specification: "TMF622-ProductOrdering-v4.0.0"
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: productordering
+  template:
+    metadata:
+      labels:
+        app: productordering
+        oda.tmforum.org/componentName: productordering
+    spec:
+      containers:
+        - name: api
+          image: nginx:1.27-alpine
+          ports:
+            - containerPort: 80
+              name: http
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tmf622-productordering
+  namespace: components
+  labels:
+    app: productordering
+spec:
+  selector:
+    app: productordering
+  ports:
+    - port: 80
+      targetPort: 80
+      name: http

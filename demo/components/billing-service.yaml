@@ -1,0 +1,48 @@
+---
+# Billing Service - Standard tier in demo-standard namespace
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: billing-service-api
+  namespace: demo-standard
+  labels:
+    app: billing-service
+    oda.tmforum.org/component: billing-service
+    component-function: core
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: billing-service
+  template:
+    metadata:
+      labels:
+        app: billing-service
+        oda.tmforum.org/component: billing-service
+    spec:
+      containers:
+        - name: api
+          image: nginx:alpine
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: billing-service-api
+  namespace: demo-standard
+  labels:
+    app: billing-service
+spec:
+  selector:
+    app: billing-service
+  ports:
+    - port: 80
+      targetPort: 80

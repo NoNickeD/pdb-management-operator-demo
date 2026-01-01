@@ -1,0 +1,23 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: components
+  labels:
+    oda.tmforum.org/canvas: "true"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: demo-critical
+  labels:
+    oda.tmforum.org/canvas: "true"
+    availability-tier: critical
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: demo-standard
+  labels:
+    oda.tmforum.org/canvas: "true"
+    availability-tier: standard

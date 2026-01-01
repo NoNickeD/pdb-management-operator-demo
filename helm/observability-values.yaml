@@ -1,0 +1,87 @@
+# kube-prometheus-stack Helm Values
+# Reference: https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack
+
+# Grafana configuration
+grafana:
+  enabled: true
+  adminPassword: prom-operator
+  persistence:
+    enabled: false
+  sidecar:
+    dashboards:
+      enabled: true
+      searchNamespace: ALL
+
+# Prometheus configuration
+prometheus:
+  prometheusSpec:
+    retention: 7d
+    storageSpec: {}
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    # Scrape PDB Management Operator metrics
+    additionalScrapeConfigs:
+      - job_name: 'pdb-management-operator'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - canvas
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+            action: keep
+            regex: pdb-management-operator
+          - source_labels: [__meta_kubernetes_pod_container_port_number]
+            action: keep
+            regex: "8080"
+
+# Alertmanager configuration
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    storage: {}
+
+# Node exporter
+nodeExporter:
+  enabled: true
+
+# Kube-state-metrics
+kubeStateMetrics:
+  enabled: true
+
+# Prometheus Operator
+prometheusOperator:
+  enabled: true
+
+# ServiceMonitor for PDB Management Operator
+additionalPrometheusRulesMap:
+  pdb-management-rules:
+    groups:
+      - name: pdb-management
+        rules:
+          - alert: PDBCreationFailure
+            expr: increase(pdb_management_pdbs_created_total{status="failure"}[5m]) > 0
+            for: 1m
+            labels:
+              severity: warning
+            annotations:
+              summary: "PDB creation failures detected"
+              description: "PDB Management Operator has failed to create PDBs in the last 5 minutes"
+
+          - alert: PolicyConflicts
+            expr: increase(pdb_management_policy_conflicts_total[5m]) > 5
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Multiple policy conflicts detected"
+              description: "More than 5 policy conflicts in the last 5 minutes"
+
+          - alert: HighReconciliationLatency
+            expr: histogram_quantile(0.99, rate(pdb_management_reconciliation_duration_seconds_bucket[5m])) > 5
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High PDB reconciliation latency"
+              description: "99th percentile reconciliation latency is above 5 seconds"

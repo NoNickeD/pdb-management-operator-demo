@@ -1,0 +1,49 @@
+# OpenTofu / Terraform
+**/.terraform/
+**/.tofu/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars.local
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraform.lock.hcl
+
+# Helm
+charts/
+*.tgz
+
+# Kubernetes
+kubeconfig
+*.kubeconfig
+
+# Secrets (never commit these)
+*.pem
+*.key
+*secret*
+credentials.json
+.env
+.env.*
+
+# IDE
+.idea/
+.vscode/
+.cursor/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+tmp/
+temp/

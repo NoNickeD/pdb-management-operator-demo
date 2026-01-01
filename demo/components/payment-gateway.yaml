@@ -1,0 +1,56 @@
+# Payment Gateway - Mission Critical Component
+# This deployment shows the highest availability class
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-gateway
+  namespace: components
+  labels:
+    app: payment-gateway
+    tier: critical
+    oda.tmforum.org/componentName: payment-gateway
+    oda.tmforum.org/componentType: core
+  annotations:
+    oda.tmforum.org/availability-class: "mission-critical"
+    oda.tmforum.org/component-function: "core"
+    oda.tmforum.org/componentName: "payment-gateway"
+spec:
+  replicas: 6
+  selector:
+    matchLabels:
+      app: payment-gateway
+  template:
+    metadata:
+      labels:
+        app: payment-gateway
+        tier: critical
+        oda.tmforum.org/componentName: payment-gateway
+    spec:
+      containers:
+        - name: gateway
+          image: nginx:1.27-alpine
+          ports:
+            - containerPort: 80
+              name: http
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-gateway
+  namespace: components
+  labels:
+    app: payment-gateway
+spec:
+  selector:
+    app: payment-gateway
+  ports:
+    - port: 80
+      targetPort: 80
+      name: http

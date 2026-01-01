@@ -1,0 +1,24 @@
+# Security Components Strict Policy
+# Enforces mission-critical availability for all security components
+# Uses strict enforcement - developer annotations are ignored
+apiVersion: availability.oda.tmforum.org/v1alpha1
+kind: AvailabilityPolicy
+metadata:
+  name: security-strict
+  namespace: canvas
+spec:
+  # Maximum availability for security components
+  availabilityClass: mission-critical
+
+  # Strict enforcement - policy always wins, annotations ignored
+  enforcement: strict
+
+  # High priority - overrides production-baseline
+  priority: 1000
+
+  # Target security components specifically
+  componentSelector:
+    componentFunctions:
+      - security
+    namespaces:
+      - components

@@ -1,0 +1,56 @@
+# TMF620 Product Catalog - Core ODA Component
+# This deployment demonstrates annotation-based PDB configuration
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tmf620-productcatalog
+  namespace: components
+  labels:
+    app: productcatalog
+    oda.tmforum.org/componentName: productcatalog
+    oda.tmforum.org/componentType: core
+  annotations:
+    # PDB Management Operator annotations
+    oda.tmforum.org/availability-class: "high-availability"
+    oda.tmforum.org/component-function: "core"
+    oda.tmforum.org/componentName: "productcatalog"
+    oda.tmforum.org/api-specification: "TMF620-ProductCatalog-v4.0.0"
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: productcatalog
+  template:
+    metadata:
+      labels:
+        app: productcatalog
+        oda.tmforum.org/componentName: productcatalog
+    spec:
+      containers:
+        - name: api
+          image: nginx:1.27-alpine
+          ports:
+            - containerPort: 80
+              name: http
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tmf620-productcatalog
+  namespace: components
+  labels:
+    app: productcatalog
+spec:
+  selector:
+    app: productcatalog
+  ports:
+    - port: 80
+      targetPort: 80
+      name: http
